@@ -1,0 +1,93 @@
+<!doctype html>
+<!-- Jabber Jawbreaker v0.2 — playable board UI (5×5 grid, 3 mini-games on a shared seeded board).
+     Static single-player build: serve this folder's root so ./backend imports + the dictionary resolve:
+       python3 -m http.server 8000   → open /
+     Runs solo out of the box; fill CONFIG in app.mjs to submit scores to Supabase.  #LLM-generated -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0c0e16">
+<title>Jabber Jawbreaker</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--bg:#0c0e16;--panel:#171a25;--cell:#222838;--cell2:#2b3142;--ink:#f4f6fd;--dim:#9098b0;
+    --red:#e63946;--gold:#ffd23f;--green:#3dd68c;--greenink:#06311d;--line:#2b3142}
+  html,body{height:100%;background:radial-gradient(120% 70% at 50% -10%,rgba(230,57,70,.12),transparent 60%),var(--bg);
+    color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+  body{max-width:480px;margin:0 auto;padding:max(12px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;min-height:100%}
+  header{display:flex;align-items:baseline;justify-content:space-between}
+  .logo{font-weight:900;font-size:22px;letter-spacing:.01em}.logo b{color:var(--red)}
+  .mode{font-size:11px;color:var(--dim)}
+  .gamebar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .gtitle{font-size:18px;font-weight:800}.gtitle .pill{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--red);color:#fff;padding:3px 8px;border-radius:20px;margin-left:8px;vertical-align:middle}
+  .ginstr{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.4}
+  .clue{font-size:16px;font-weight:600;margin-top:8px}
+  .stats{display:flex;gap:8px}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center}
+  .stat .v{font-size:20px;font-weight:900;line-height:1}.stat .l{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+  .current{min-height:30px;text-align:center;font-size:24px;font-weight:900;letter-spacing:.14em;color:var(--gold)}
+  .board{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .cell{aspect-ratio:1;border-radius:12px;background:var(--cell);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:clamp(20px,7vw,30px);font-weight:900;cursor:pointer;position:relative;transition:transform .06s,background .12s,border-color .12s}
+  .cell:active{transform:scale(.94)}
+  .cell.sel{background:var(--red);border-color:var(--red);color:#fff}
+  .cell.sel .ord{position:absolute;top:3px;right:5px;font-size:10px;opacity:.8}
+  .cell.used{background:var(--cell2);opacity:.5}
+  .row{display:flex;gap:8px}
+  .btn{flex:1;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:800;cursor:pointer}
+  .btn.primary{background:var(--gold);color:#2a2000}.btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  .btn:disabled{opacity:.4}
+  .found{display:flex;flex-wrap:wrap;gap:6px;max-height:96px;overflow:auto}
+  .chip{font-size:12px;font-weight:700;background:var(--cell);border:1px solid var(--line);border-radius:14px;padding:4px 9px}
+  .chip b{color:var(--gold)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--green);color:var(--greenink);font-weight:800;padding:10px 18px;border-radius:22px;opacity:0;transition:all .25s;pointer-events:none;z-index:30}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.bad{background:var(--red);color:#fff}
+  .overlay{position:fixed;inset:0;background:rgba(8,10,16,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;z-index:20}
+  .overlay.show{display:flex}
+  .overlay h2{font-size:26px}.big{font-size:46px;font-weight:900;color:var(--gold)}
+  .sub{color:var(--dim);font-size:13px;max-width:300px;line-height:1.5}
+  .load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:40;color:var(--dim);font-weight:700}
+  .spacer{flex:1}
+</style>
+</head>
+<body>
+  <div class="load" id="load">Lacing up… loading dictionary 🥊</div>
+  <header>
+    <div class="logo">JABBER <b>JAWBREAKER</b></div>
+    <div class="mode" id="mode">solo</div>
+  </header>
+
+  <div class="gamebar">
+    <div class="gtitle" id="gtitle">—<span class="pill" id="gpill"></span></div>
+    <div class="ginstr" id="ginstr"></div>
+    <div class="clue" id="clue" style="display:none"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="score">0</div><div class="l">Score</div></div>
+    <div class="stat"><div class="v" id="meta">R1</div><div class="l" id="metaL">Round</div></div>
+    <div class="stat"><div class="v" id="timer">—</div><div class="l">Timer</div></div>
+  </div>
+
+  <div class="current" id="current"></div>
+  <div class="board" id="board"></div>
+
+  <div class="row">
+    <button class="btn primary" id="act">Submit</button>
+    <button class="btn ghost" id="clear">Clear</button>
+  </div>
+  <div class="found" id="found"></div>
+
+  <div class="spacer"></div>
+  <div class="row">
+    <button class="btn ghost" id="next">Next round →</button>
+    <button class="btn ghost" id="newseed">New board</button>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="toast" id="toast"></div>
+
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
