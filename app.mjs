@@ -14,7 +14,7 @@ import * as feedbackSink from "./feedback.mjs";
 const CONFIG = { supabaseUrl: "", supabaseAnonKey: "", matchId: "", seed: 20260613 };
 const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId);
 // ----- feedback sink: fill both to auto-send playtest feedback to your Supabase -----
-const FEEDBACK = { url: "", anonKey: "" };
+const FEEDBACK = { url: "https://hprivaysbttdqgebbjio.supabase.co", anonKey: "sb_publishable_h6hAFRHUku9XNttKmde7MA_owVkO1Wc" };
 const FB_ON = !!(FEEDBACK.url && FEEDBACK.anonKey);
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
