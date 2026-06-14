@@ -48,6 +48,11 @@
   .overlay h2{font-size:26px}.big{font-size:46px;font-weight:900;color:var(--gold)}
   .sub{color:var(--dim);font-size:13px;max-width:300px;line-height:1.5}
   .load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:40;color:var(--dim);font-weight:700}
+  .rate{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .rate button{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:8px 12px;font-size:20px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .rate button small{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  .rate button:active{transform:scale(.94)}
+  .note{width:min(300px,80vw);background:var(--cell);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;font-size:13px;text-align:center}
   .spacer{flex:1}
 </style>
 </head>
@@ -87,8 +92,8 @@
 
   <div class="spacer"></div>
   <div class="row">
-    <button class="btn ghost" id="next">Next round →</button>
-    <button class="btn ghost" id="newseed">New board</button>
+    <button class="btn ghost" id="next">Skip mode →</button>
+    <button class="btn ghost" id="newseed">📋 Export feedback</button>
   </div>
 
   <div class="overlay" id="overlay"></div>

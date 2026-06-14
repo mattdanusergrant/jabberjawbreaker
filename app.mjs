@@ -17,7 +17,8 @@ const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 const $ = (id) => document.getElementById(id);
 const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null, live: null,
   game: null, prompt: {}, sel: [], words: [], score: 0, start: 0, timerId: null, ended: false,
-  moves: 0, refill: null, combo: 1, sprintIdx: 0, arrange: false, axis: "row", dir: 1, firstTap: null };
+  moves: 0, refill: null, combo: 1, sprintIdx: 0, arrange: false, axis: "row", dir: 1, firstTap: null,
+  bag: [], modeCount: 0, feedback: [] };
 
 // ---------- boot ----------
 (async function boot() {
@@ -28,15 +29,44 @@ const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null
   const { buildPrefixSet } = await import("./backend/engine/grid.mjs");
   S.prefixes = buildPrefixSet(S.dict);
   if (ONLINE) { try { await online.init(CONFIG); $("mode").textContent = "online"; } catch (e) { console.warn(e); } }
+  S.feedback = loadFeedback();
   $("load").style.display = "none";
   wire();
-  newRound(S.seed, 0);
+  startNext();                         // playtest: serve a random mode
 })();
 
+// ---------- playtest harness ----------
+const FB_KEY = "jj-feedback";
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function nextMode() { if (!S.bag.length) S.bag = shuffle(Object.keys(MINIGAMES)); return S.bag.pop(); }
+function startNext() { S.modeCount++; newRound((Math.random() * 2 ** 31) | 0, S.modeCount, nextMode()); }
+const loadFeedback = () => { try { return JSON.parse(localStorage.getItem(FB_KEY) || "[]"); } catch { return []; } };
+function recordFeedback(rating) {
+  const note = ($("note")?.value || "").trim();
+  S.feedback.push({ mode: S.game.id, label: S.game.label, rating, note, score: S.score, seed: S.seed, ts: new Date().toISOString() });
+  localStorage.setItem(FB_KEY, JSON.stringify(S.feedback));
+}
+function exportFeedback() {
+  if (!S.feedback.length) return toast("No feedback logged yet", true);
+  const byMode = {};
+  for (const f of S.feedback) (byMode[f.label] ||= []).push(f.rating);
+  const summary = Object.fromEntries(Object.entries(byMode).map(([k, v]) => {
+    const r = v.filter(Boolean);
+    return [k, { n: v.length, avg: r.length ? +(r.reduce((a, b) => a + b, 0) / r.length).toFixed(2) : null }];
+  }));
+  const payload = JSON.stringify({ exported: new Date().toISOString(), count: S.feedback.length, summary, entries: S.feedback }, null, 2);
+  navigator.clipboard?.writeText(payload);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+  a.download = "jabber-jawbreaker-feedback.json"; a.click();
+  toast("Feedback copied + downloaded (" + S.feedback.length + ")");
+}
+
 // ---------- round lifecycle ----------
-function newRound(seed, round) {
+function newRound(seed, round, forcedMode) {
   S.seed = seed; S.round = round;
   S.board = boardForMatch(seed, round, S.dict, { ...PROD, prefixes: S.prefixes });
+  if (forcedMode) S.board.minigame = forcedMode;     // playtest serves a chosen mode on a fertile board
   S.live = S.board.letters.slice();
   S.game = MINIGAMES[S.board.minigame];
   S.prompt = S.game.setup(S.board, seed) || {};
@@ -70,6 +100,7 @@ function render() {
   $("gtitle").firstChild.textContent = g.label + " ";
   $("gpill").textContent = S.board.fertile ? "shared board" : "fallback";
   $("ginstr").textContent = g.instructions;
+  if (!ONLINE) $("mode").textContent = "playtest · " + S.feedback.length + "✍";
 
   const showClue = g.id === "trivia_spell" || g.sprint;
   $("clue").style.display = showClue ? "block" : "none";
@@ -260,18 +291,28 @@ async function endRound() {
   }
   const ov = $("overlay");
   ov.innerHTML = `
-    <h2>${S.game.label} — done</h2>
+    <h2>${S.game.label}</h2>
     <div class="big">${S.score}</div>
-    <div class="sub">Best ${S.game.label}: ${best}</div>
+    <div class="sub">Best: ${best}</div>
     ${standingsHtml}
-    <button class="btn primary" id="ovNext" style="max-width:240px">Next round →</button>
-    <button class="btn ghost" id="ovShare" style="max-width:240px">📋 Share</button>`;
+    <div class="sub">How was <b>${S.game.label}</b>?</div>
+    <div class="rate" id="rate">
+      <button data-r="4">🥊<small>love</small></button>
+      <button data-r="3">👍<small>good</small></button>
+      <button data-r="2">😐<small>meh</small></button>
+      <button data-r="1">👎<small>nope</small></button>
+    </div>
+    <input id="note" class="note" placeholder="one line of feedback (optional)" autocomplete="off">
+    <div class="row" style="max-width:300px">
+      <button class="btn ghost" id="ovSkip">Skip →</button>
+      <button class="btn ghost" id="ovExport">📋 Export (${S.feedback.length})</button>
+    </div>
+    <div class="sub">Rate it to log your feedback and get the next random mode.</div>`;
   ov.classList.add("show");
-  $("ovNext").onclick = () => newRound(S.seed, S.round + 1);
-  $("ovShare").onclick = () => {
-    navigator.clipboard?.writeText(`Jabber Jawbreaker — ${S.game.label}: ${S.score} 🥊`);
-    toast("Copied!");
-  };
+  document.querySelectorAll("#rate button").forEach((btn) =>
+    (btn.onclick = () => { recordFeedback(+btn.dataset.r); startNext(); }));
+  $("ovSkip").onclick = () => startNext();
+  $("ovExport").onclick = exportFeedback;
   render();
 }
 
@@ -284,8 +325,8 @@ function toast(msg, bad) {
 function wire() {
   $("act").onclick = act;
   $("clear").onclick = () => { S.sel = []; S.firstTap = null; render(); };
-  $("next").onclick = () => newRound(S.seed, S.round + 1);
-  $("newseed").onclick = () => newRound((Math.random() * 2 ** 31) | 0, 0);
+  $("next").onclick = () => startNext();            // skip to the next random mode
+  $("newseed").onclick = () => exportFeedback();
   $("modeToggle").onclick = () => { S.arrange = !S.arrange; S.sel = []; S.firstTap = null; render(); };
   $("axisBtn").onclick = () => { S.axis = S.axis === "row" ? "col" : "row"; render(); };
   $("dirBtn").onclick = () => { S.dir = -S.dir; render(); };

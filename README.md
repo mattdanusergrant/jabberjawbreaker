@@ -35,8 +35,22 @@ https://mattdanusergrant.github.io/jabberjawbreaker/
 
 Tap tiles to build/trace a word and **Submit** to score. Grid-manipulation games show a
 **Mode: Arrange / Hunt** toggle (plus row/col + direction controls where relevant) — reshape
-the board within your move budget, then switch to Hunt. **Next round →** rotates the mini-game,
-**New board** reseeds. Best scores per mini-game are saved locally.
+the board within your move budget, then switch to Hunt. Best scores per mini-game are saved locally.
+
+## Playtest mode
+
+This build runs as a **playtest harness**: it serves the 13 modes in a **random order**
+(a shuffled bag, so you see every mode before any repeats), each on a fresh board. After
+every mode you're asked to rate it — **🥊 love / 👍 good / 😐 meh / 👎 nope** — with an
+optional one-line note. Rating it logs your feedback and serves the next random mode;
+**Skip mode →** moves on without rating.
+
+Feedback is stored in your browser (`localStorage`) and never leaves your device until you
+ask. Hit **📋 Export feedback** (bottom-right, or on any result card) to copy a JSON report
+to your clipboard *and* download it as `jabber-jawbreaker-feedback.json` — the report
+includes a per-mode summary (count + average rating) plus every individual entry. Send that
+file/paste back to share your playtest. *(A hosted collector — Supabase or a form endpoint —
+is a straightforward later upgrade if you want feedback gathered automatically.)*
 
 ## Run locally
 
