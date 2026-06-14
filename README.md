@@ -12,14 +12,31 @@ Once GitHub Pages is enabled (see below), the game lives at:
 https://mattdanusergrant.github.io/jabberjawbreaker/
 ```
 
-Three mini-games rotate on a shared, seed-derived board:
+**Thirteen** mini-games rotate on a shared, seed-derived board, across four interaction styles:
 
-- **Word Hunt** — find as many valid words as you can on adjacent tiles before the 60s timer.
-- **Longest Word** — spell the single longest valid word you can from the board.
-- **Trivia Spell** — read the clue, then spell the answer from the board's letters.
+*Trace a word along adjacent tiles:*
+- **Word Hunt** — find as many valid words as you can before the 60s timer.
+- **Snake** — trace one long word along a single connected path; longest wins.
+- **Vowel Famine** — only words using at most two vowels count.
+- **Bingo Lines** — cover a full row or column with your words for a bonus.
+- **Knockout** 🥊 — trace a word and it shatters; tiles drop, fresh letters fall in, chain combos for a KO multiplier.
 
-Tap tiles to build a word, **Submit** to score, **Next round →** for the next mini-game,
-**New board** for a fresh random seed. Best scores per mini-game are saved locally.
+*Reshape the grid, then hunt:*
+- **Jab Swap** 🥊 — swap up to 3 pairs of tiles, then hunt.
+- **Roll With It** 🥊 — slide rows/columns (they wrap) up to 4 times, then hunt.
+- **Bob & Weave** 🥊 — rotate 2×2 blocks up to 4 times, then hunt.
+- **Anagram Anchors** 🥊 — reorder the tiles in each row into a 5-letter word.
+
+*Build a word from any letters:*
+- **Longest Word** — spell the single longest valid word.
+- **Ladder** — climb a chain of words, each one letter longer than the last.
+- **Trivia Spell** — read the clue, spell the answer from the board.
+- **Trivia Sprint** — five quick clues in a row, against the clock.
+
+Tap tiles to build/trace a word and **Submit** to score. Grid-manipulation games show a
+**Mode: Arrange / Hunt** toggle (plus row/col + direction controls where relevant) — reshape
+the board within your move budget, then switch to Hunt. **Next round →** rotates the mini-game,
+**New board** reseeds. Best scores per mini-game are saved locally.
 
 ## Run locally
 

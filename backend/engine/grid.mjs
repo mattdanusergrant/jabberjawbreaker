@@ -51,7 +51,9 @@ export function genLetters(rng) {
 }
 
 // ---------- mini-game rotation ----------
-export const ROTATION = ["word_hunt", "longest_word", "trivia_spell"]; // category_sweep: future
+export const ROTATION = ["word_hunt", "longest_word", "trivia_spell",
+  "snake", "vowel_famine", "bingo_lines", "knockout",
+  "jab_swap", "roll_with_it", "bob_weave", "anagram_anchors", "ladder", "trivia_sprint"];
 export const LETTER_VALUES = { A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,
   N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10 };
 
@@ -75,6 +77,30 @@ export function wordPathExists(letters, word) {
   };
   for (let i = 0; i < 25; i++) if (letters[i] === word[0] && dfs(i, 0)) return true;
   return false;
+}
+// like wordPathExists, but returns the actual cell-index path (or null). Used by
+// games that care WHERE a word sits (Bingo lines, Knockout cascades, highlighting).
+export function wordPath(letters, word) {
+  word = word.toUpperCase();
+  const path = [], seen = new Array(25).fill(false);
+  const dfs = (idx, k) => {
+    if (letters[idx] !== word[k]) return false;
+    seen[idx] = true; path.push(idx);
+    if (k === word.length - 1) return true;
+    const r = (idx / 5) | 0, c = idx % 5;
+    for (const dr of NEI) for (const dc of NEI) {
+      if (!dr && !dc) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr > 4 || nc < 0 || nc > 4) continue;
+      const ni = nr * 5 + nc;
+      if (!seen[ni] && dfs(ni, k + 1)) return true;
+    }
+    seen[idx] = false; path.pop(); return false;
+  };
+  for (let i = 0; i < 25; i++) {
+    if (letters[i] === word[0]) { path.length = 0; seen.fill(false); if (dfs(i, 0)) return path.slice(); }
+  }
+  return null;
 }
 export function minigameForRound(matchSeed, roundNo, rotation = ROTATION) {
   // rotate predictably but seed-shuffled so matches don't all share a schedule

@@ -40,6 +40,7 @@ export const BANK = [
 export const triviaSpell = {
   id: "trivia_spell",
   label: "Trivia Spell",
+  interaction: "build",
   instructions: "Answer the clue by spelling it out from the board's letters.",
   // setup is seed-derived: pick a clue whose answer is spellable from this board
   setup(board, seed) {

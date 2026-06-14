@@ -1,9 +1,12 @@
 // Jabber Jawbreaker v0.2 — front-end. Renders the shared seeded board and plays the
-// three mini-games, scoring via the backend engine. Solo by default; fill CONFIG to
-// submit to Supabase (uses ./online.mjs, which loads supabase-js from a CDN).  #LLM-generated
-import { boardForMatch, minigameForRound } from "./backend/engine/grid.mjs";
+// thirteen mini-games, scoring via the backend engine. The front-end is interaction-
+// driven: each game declares an `interaction` (trace / build / manip / anchors) plus a
+// few flags, and the loop below routes input accordingly. Solo by default; fill CONFIG
+// to submit to Supabase (uses ./online.mjs, which loads supabase-js from a CDN).  #LLM-generated
+import { boardForMatch, subSeed, mulberry32 } from "./backend/engine/grid.mjs";
 import { MINIGAMES } from "./backend/engine/minigames/index.mjs";
 import { duelStandings } from "./backend/engine/standings.mjs";
+import { swap, shiftRow, shiftCol, rotate2x2, collapse, letterStream } from "./backend/engine/manip.mjs";
 import * as online from "./online.mjs";
 
 // ----- config: leave blank for solo; fill all four to go online -----
@@ -12,8 +15,9 @@ const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
 const $ = (id) => document.getElementById(id);
-const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null,
-  game: null, prompt: {}, sel: [], words: [], score: 0, start: 0, timerId: null, ended: false };
+const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null, live: null,
+  game: null, prompt: {}, sel: [], words: [], score: 0, start: 0, timerId: null, ended: false,
+  moves: 0, refill: null, combo: 1, sprintIdx: 0, arrange: false, axis: "row", dir: 1, firstTap: null };
 
 // ---------- boot ----------
 (async function boot() {
@@ -33,17 +37,23 @@ const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null
 function newRound(seed, round) {
   S.seed = seed; S.round = round;
   S.board = boardForMatch(seed, round, S.dict, { ...PROD, prefixes: S.prefixes });
+  S.live = S.board.letters.slice();
   S.game = MINIGAMES[S.board.minigame];
   S.prompt = S.game.setup(S.board, seed) || {};
   S.sel = []; S.words = []; S.score = 0; S.ended = false; S.start = Date.now();
+  S.moves = S.game.moves || 0; S.combo = 1; S.sprintIdx = 0; S.firstTap = null;
+  S.arrange = S.game.interaction === "manip"; S.axis = "row"; S.dir = 1;
+  S.refill = S.game.cascade ? letterStream(mulberry32(subSeed(seed, round, 0xC0FFEE))) : null;
   clearInterval(S.timerId); S.timerId = null;
   $("overlay").classList.remove("show");
-  if (S.game.id === "word_hunt") startTimer(60);
-  else $("timer").textContent = S.game.id === "trivia_spell" ? "0s" : "—";
+  if (S.game.id === "word_hunt" || S.game.cascade) startCountdown(60);
+  else if (S.game.id === "trivia_spell" || S.game.sprint) {
+    $("timer").textContent = "0s";
+    S.timerId = setInterval(() => { if (!S.ended) $("timer").textContent = Math.round((Date.now() - S.start) / 1000) + "s"; }, 500);
+  } else $("timer").textContent = "—";
   render();
 }
-
-function startTimer(secs) {
+function startCountdown(secs) {
   const end = Date.now() + secs * 1000;
   S.timerId = setInterval(() => {
     const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
@@ -51,34 +61,75 @@ function startTimer(secs) {
     if (left <= 0) { clearInterval(S.timerId); endRound(); }
   }, 250);
 }
+const curBoard = () => ({ ...S.board, letters: S.live });
+const wordFromSel = () => S.sel.map((i) => S.live[i]).join("");
 
 // ---------- rendering ----------
 function render() {
-  $("gtitle").firstChild.textContent = S.game.label + " ";
+  const g = S.game, it = g.interaction, isManip = it === "manip";
+  $("gtitle").firstChild.textContent = g.label + " ";
   $("gpill").textContent = S.board.fertile ? "shared board" : "fallback";
-  $("ginstr").textContent = S.game.instructions;
-  const isTrivia = S.game.id === "trivia_spell";
-  $("clue").style.display = isTrivia ? "block" : "none";
-  if (isTrivia) $("clue").textContent = `“${S.prompt.clue}”  (${S.prompt.answerLen} letters)`;
-  $("score").textContent = S.score;
-  $("meta").textContent = "R" + (S.round + 1); $("metaL").textContent = S.board.minigame.replace("_", " ");
-  if (isTrivia && !S.ended) $("timer").textContent = Math.round((Date.now() - S.start) / 1000) + "s";
+  $("ginstr").textContent = g.instructions;
 
-  $("current").textContent = S.sel.map((i) => S.board.letters[i]).join("");
+  const showClue = g.id === "trivia_spell" || g.sprint;
+  $("clue").style.display = showClue ? "block" : "none";
+  if (showClue) {
+    const c = g.sprint ? S.prompt.clues[Math.min(S.sprintIdx, S.prompt.clues.length - 1)] : S.prompt;
+    $("clue").textContent = `“${c.clue}”  (${c.answerLen} letters)`;
+  }
+
+  $("score").textContent = S.score;
+  let mv = "R" + (S.round + 1), ml = g.label;
+  if (isManip) { mv = S.moves; ml = "moves left"; }
+  else if (g.cascade) { mv = "×" + (1 + 0.5 * Math.max(0, S.combo - 1)).toFixed(1); ml = "combo"; }
+  else if (g.chain) { mv = S.words.length; ml = "rungs"; }
+  else if (g.sprint) { mv = Math.min(S.sprintIdx + 1, S.prompt.clues.length) + "/" + S.prompt.clues.length; ml = "clue"; }
+  $("meta").textContent = mv; $("metaL").textContent = ml;
+
+  // contextual manipulation controls
+  $("controls").style.display = isManip ? "flex" : "none";
+  if (isManip) {
+    $("modeToggle").textContent = "Mode: " + (S.arrange ? "Arrange" : "Hunt");
+    const k = g.manipKind;
+    $("axisBtn").style.display = k === "shift" ? "block" : "none";
+    $("dirBtn").style.display = (k === "shift" || k === "rotate") ? "block" : "none";
+    $("axisBtn").textContent = S.axis === "row" ? "↔ Row" : "↕ Col";
+    $("dirBtn").textContent = k === "rotate" ? (S.dir > 0 ? "⟳ CW" : "⟲ CCW") : (S.dir > 0 ? "▶ fwd" : "◀ back");
+  }
+
+  const arrangeHint = { swap: "tap two tiles to swap", shift: "tap a tile to slide its line", rotate: "tap a tile to rotate its 2×2 block" };
+  $("current").textContent = (isManip && S.arrange) ? arrangeHint[g.manipKind] : wordFromSel();
+
   const b = $("board"); b.innerHTML = "";
-  S.board.letters.forEach((ch, i) => {
+  S.live.forEach((ch, i) => {
     const el = document.createElement("div");
     const ord = S.sel.indexOf(i);
-    el.className = "cell" + (ord >= 0 ? " sel" : "");
+    const hot = ord >= 0 || S.firstTap === i;
+    el.className = "cell" + (hot ? " sel" : "");
     el.innerHTML = ch + (ord >= 0 ? `<span class="ord">${ord + 1}</span>` : "");
     el.onclick = () => tap(i);
     b.appendChild(el);
   });
-  $("act").textContent = S.game.id === "word_hunt" ? "Submit word" : "Submit";
-  $("act").disabled = S.ended || S.sel.length === 0;
+
+  $("act").textContent = actLabel();
+  const needsSel = it === "trace" || it === "build" || (isManip && !S.arrange);
+  $("act").disabled = S.ended || (needsSel && S.sel.length === 0);
+  $("clear").style.display = it === "anchors" ? "none" : "block";
+
   const f = $("found"); f.innerHTML = "";
   for (const w of [...S.words].reverse())
     f.appendChild(Object.assign(document.createElement("span"), { className: "chip", innerHTML: w }));
+}
+function actLabel() {
+  const g = S.game;
+  if (g.interaction === "manip" && S.arrange) return "Start hunting →";
+  if (g.cascade) return "Knockout!";
+  if (g.single) return "Submit snake";
+  if (g.chain) return "Add rung";
+  if (g.sprint || g.id === "trivia_spell") return "Submit answer";
+  if (g.interaction === "anchors") return "Check rows";
+  if (g.id === "longest_word") return "Submit";
+  return "Submit word";
 }
 
 // ---------- interaction ----------
@@ -86,33 +137,109 @@ const adjacent = (a, b) => a !== b && Math.abs(((a / 5) | 0) - ((b / 5) | 0)) <=
 
 function tap(i) {
   if (S.ended) return;
+  const it = S.game.interaction;
+  if (it === "trace") traceTap(i, true);
+  else if (it === "build") traceTap(i, false);
+  else if (it === "anchors") pairTap(i, true);
+  else if (it === "manip") { if (S.arrange) manipTap(i); else traceTap(i, true); }
+}
+function traceTap(i, adj) {
   const pos = S.sel.indexOf(i);
   if (pos >= 0) { if (pos === S.sel.length - 1) S.sel.pop(); return render(); } // undo last
-  if (S.game.id === "word_hunt" && S.sel.length && !adjacent(S.sel[S.sel.length - 1], i))
-    return toast("Letters must be adjacent", true);
+  if (adj && S.sel.length && !adjacent(S.sel[S.sel.length - 1], i)) return toast("Letters must be adjacent", true);
   S.sel.push(i); render();
 }
-
-function act() {
-  if (S.sel.length === 0) return;
-  const word = S.sel.map((i) => S.board.letters[i]).join("");
-  const ctx = { board: S.board, dict: S.dict, prompt: S.prompt };
-  if (S.game.id === "word_hunt") {
-    if (S.words.includes(word)) { toast("Already found", true); S.sel = []; return render(); }
-    const trial = S.game.score({ words: [...S.words, word] }, ctx);
-    if (trial.detail.found.some((x) => x.w === word)) {
-      S.words.push(word); S.score = trial.points; toast("+" + (trial.detail.found.find((x) => x.w === word).pts));
-    } else toast("Not a valid word here", true);
-    S.sel = []; render();
-  } else if (S.game.id === "longest_word") {
-    const r = S.game.score({ word }, ctx);
-    if (!r.valid) { toast(r.detail.reason, true); S.sel = []; return render(); }
-    S.score = r.points; endRound();
-  } else { // trivia_spell
-    const r = S.game.score({ guess: word, timeMs: Date.now() - S.start }, ctx);
-    if (!r.valid) { toast("Not it — keep spelling!", true); S.sel = []; return render(); }
-    S.score = r.points; endRound();
+function pairTap(i, sameRow) {                 // pick two tiles, swap them (anchors: same row only)
+  if (S.firstTap === null) { S.firstTap = i; return render(); }
+  if (S.firstTap === i) { S.firstTap = null; return render(); }
+  if (sameRow && ((S.firstTap / 5) | 0) !== ((i / 5) | 0)) { toast("Same row only", true); S.firstTap = i; return render(); }
+  S.live = swap(S.live, S.firstTap, i); S.firstTap = null; render();
+}
+function manipTap(i) {
+  if (S.moves <= 0) { toast("No moves left — start hunting", true); S.arrange = false; return render(); }
+  const k = S.game.manipKind;
+  if (k === "swap") {
+    if (S.firstTap === null) { S.firstTap = i; return render(); }
+    if (S.firstTap === i) { S.firstTap = null; return render(); }
+    S.live = swap(S.live, S.firstTap, i); S.firstTap = null; S.moves--;
+  } else if (k === "rotate") {
+    S.live = rotate2x2(S.live, i, S.dir); S.moves--;
+  } else if (k === "shift") {
+    const r = (i / 5) | 0, c = i % 5;
+    S.live = S.axis === "row" ? shiftRow(S.live, r, S.dir) : shiftCol(S.live, c, S.dir); S.moves--;
   }
+  if (S.moves <= 0) { S.arrange = false; toast("Out of moves — hunt!"); }
+  render();
+}
+
+// ---------- submit ----------
+function act() {
+  if (S.ended) return;
+  const g = S.game, it = g.interaction;
+  if (it === "manip" && S.arrange) { S.arrange = false; S.sel = []; S.firstTap = null; toast("Hunt mode — trace words"); return render(); }
+  if (it === "anchors") return anchorsSubmit();
+  if (S.sel.length === 0) return;
+  const word = wordFromSel();
+  if (it === "trace" || (it === "manip" && !S.arrange)) {
+    if (g.cascade) return knockoutSubmit(word);
+    if (g.single) return singleSubmit(word);
+    return huntSubmit(word);
+  }
+  if (it === "build") {
+    if (g.chain) return ladderSubmit(word);
+    if (g.sprint) return sprintSubmit(word);
+    if (g.id === "trivia_spell") return triviaSubmit(word);
+    return singleSubmit(word);                 // longest_word
+  }
+}
+function huntSubmit(word) {                     // word_hunt, vowel_famine, bingo_lines, manip hunts
+  if (S.words.includes(word)) { toast("Already found", true); S.sel = []; return render(); }
+  const trial = S.game.score({ words: [...S.words, word] }, { board: curBoard(), dict: S.dict });
+  const hit = trial.detail.found.find((x) => x.w === word);
+  if (hit) {
+    S.words.push(word); S.score = trial.points;
+    toast("+" + hit.pts + (trial.detail.bonus ? ` (+${trial.detail.bonus} bingo!)` : ""));
+  } else toast("Not valid here", true);
+  S.sel = []; render();
+}
+function singleSubmit(word) {                   // snake, longest_word — one shot, ends round
+  const sub = S.game.single ? { word } : { word };
+  const r = S.game.score(sub, { board: curBoard(), dict: S.dict });
+  if (!r.valid) { toast(r.detail.reason || "Not valid", true); S.sel = []; return render(); }
+  S.score = r.points; endRound();
+}
+function knockoutSubmit(word) {
+  const r = S.game.score({ word, combo: S.combo }, { board: curBoard(), dict: S.dict });
+  if (!r.valid) { toast("No path — combo lost", true); S.combo = 1; S.sel = []; return render(); }
+  S.score += r.points; S.words.push(word + " ×" + r.detail.mult);
+  S.live = collapse(S.live, r.detail.path, S.refill);
+  S.combo++; toast("+" + r.points + (S.combo > 2 ? ` — combo ${S.combo - 1}!` : ""));
+  S.sel = []; render();
+}
+function ladderSubmit(word) {
+  const trial = S.game.score({ words: [...S.words, word] }, { board: curBoard(), dict: S.dict });
+  if (trial.detail.rungs.length > S.words.length) { S.words.push(word); S.score = trial.points; toast("Rung " + trial.detail.rungs.length + "!"); }
+  else toast("Must be +1 longer and on the board", true);
+  S.sel = []; render();
+}
+function sprintSubmit(word) {
+  const r = S.game.score({ guess: word, idx: S.sprintIdx, timeMs: Date.now() - S.start }, { prompt: S.prompt });
+  if (!r.valid) { toast("Not it — keep spelling!", true); S.sel = []; return render(); }
+  S.score += r.points; S.sprintIdx++; S.sel = []; S.start = Date.now();
+  if (S.sprintIdx >= S.prompt.clues.length) return endRound();
+  toast("✓ next clue!"); render();
+}
+function triviaSubmit(word) {
+  const r = S.game.score({ guess: word, timeMs: Date.now() - S.start }, { prompt: S.prompt });
+  if (!r.valid) { toast("Not it — keep spelling!", true); S.sel = []; return render(); }
+  S.score = r.points; endRound();
+}
+function anchorsSubmit() {
+  const r = S.game.score({ letters: S.live }, { board: curBoard(), dict: S.dict });
+  S.score = r.points;
+  toast(r.detail.rows.length + "/5 rows" + (r.detail.perfect ? " — PERFECT!" : ""));
+  if (r.detail.rows.length === 5) return endRound();
+  render();
 }
 
 // ---------- end of round ----------
@@ -135,7 +262,7 @@ async function endRound() {
   ov.innerHTML = `
     <h2>${S.game.label} — done</h2>
     <div class="big">${S.score}</div>
-    <div class="sub">Best ${S.game.label}: ${best}${S.game.id === "trivia_spell" ? "" : ""}</div>
+    <div class="sub">Best ${S.game.label}: ${best}</div>
     ${standingsHtml}
     <button class="btn primary" id="ovNext" style="max-width:240px">Next round →</button>
     <button class="btn ghost" id="ovShare" style="max-width:240px">📋 Share</button>`;
@@ -156,7 +283,10 @@ function toast(msg, bad) {
 }
 function wire() {
   $("act").onclick = act;
-  $("clear").onclick = () => { S.sel = []; render(); };
+  $("clear").onclick = () => { S.sel = []; S.firstTap = null; render(); };
   $("next").onclick = () => newRound(S.seed, S.round + 1);
   $("newseed").onclick = () => newRound((Math.random() * 2 ** 31) | 0, 0);
+  $("modeToggle").onclick = () => { S.arrange = !S.arrange; S.sel = []; S.firstTap = null; render(); };
+  $("axisBtn").onclick = () => { S.axis = S.axis === "row" ? "col" : "row"; render(); };
+  $("dirBtn").onclick = () => { S.dir = -S.dir; render(); };
 }

@@ -6,6 +6,7 @@ const wordPoints = (len) => (len >= 8 ? 11 : ({ 3: 1, 4: 1, 5: 2, 6: 3, 7: 5 }[l
 export const wordHunt = {
   id: "word_hunt",
   label: "Word Hunt",
+  interaction: "trace",
   instructions: "Find words by linking adjacent letters (diagonals count). No reusing a tile within a word.",
   setup() { return {}; },
   // submission: { words: string[] }   ctx: { board, dict }

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Jabber Jawbreaker v0.2 — playable board UI (5×5 grid, 3 mini-games on a shared seeded board).
+<!-- Jabber Jawbreaker v0.2 — playable board UI (5×5 grid, 13 mini-games on a shared seeded board).
      Static single-player build: serve this folder's root so ./backend imports + the dictionary resolve:
        python3 -m http.server 8000   → open /
      Runs solo out of the box; fill CONFIG in app.mjs to submit scores to Supabase.  #LLM-generated -->
@@ -68,6 +68,12 @@
     <div class="stat"><div class="v" id="score">0</div><div class="l">Score</div></div>
     <div class="stat"><div class="v" id="meta">R1</div><div class="l" id="metaL">Round</div></div>
     <div class="stat"><div class="v" id="timer">—</div><div class="l">Timer</div></div>
+  </div>
+
+  <div class="row" id="controls" style="display:none">
+    <button class="btn ghost" id="modeToggle">Mode: Arrange</button>
+    <button class="btn ghost" id="axisBtn" style="display:none">↔ Row</button>
+    <button class="btn ghost" id="dirBtn" style="display:none">▶ fwd</button>
   </div>
 
   <div class="current" id="current"></div>
