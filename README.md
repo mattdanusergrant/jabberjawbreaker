@@ -12,6 +12,21 @@ Once GitHub Pages is enabled (see below), the game lives at:
 https://mattdanusergrant.github.io/jabberjawbreaker/
 ```
 
+On launch you pick **🥊 Start a Bout** or **🎯 Playtest the modes**.
+
+## Bout mode (Slugfest)
+
+A **3-round word-boxing match** against a seeded sparring partner. Each round is a timed
+mini-game (45s) drawn from a skill-spread fight card; your score becomes **damage** to your
+rival's **health bar** (and theirs to yours). Win rounds to drain their HP — a dominant round is
+a **KNOCKDOWN**, emptying the bar is a **KO**. If it goes the distance, the higher remaining HP
+wins, and close fights get a **judges'-card reveal** (Technician · Brawler · Stats →
+unanimous/split/draw). The boxing scoring math (`backend/engine/boxing.mjs`: `resolveBout` +
+`boxingCard`) runs hidden behind the bars — design rationale in the vault's `bout-design.md` and
+`02_reference/2026-06-14-mobile-boxing-game-rules.md`.
+
+## The mini-games
+
 **Thirteen** mini-games rotate on a shared, seed-derived board, across four interaction styles:
 
 *Trace a word along adjacent tiles:*

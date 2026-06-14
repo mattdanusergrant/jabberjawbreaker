@@ -7,6 +7,7 @@ import { boardForMatch, subSeed, mulberry32 } from "./backend/engine/grid.mjs";
 import { MINIGAMES } from "./backend/engine/minigames/index.mjs";
 import { duelStandings } from "./backend/engine/standings.mjs";
 import { swap, shiftRow, shiftCol, rotate2x2, collapse, letterStream } from "./backend/engine/manip.mjs";
+import { resolveBout, boxingCard, describeResult } from "./backend/engine/boxing.mjs";
 import * as online from "./online.mjs";
 import * as feedbackSink from "./feedback.mjs";
 
@@ -22,7 +23,7 @@ const $ = (id) => document.getElementById(id);
 const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null, live: null,
   game: null, prompt: {}, sel: [], words: [], score: 0, start: 0, timerId: null, ended: false,
   moves: 0, refill: null, combo: 1, sprintIdx: 0, arrange: false, axis: "row", dir: 1, firstTap: null,
-  bag: [], modeCount: 0, feedback: [] };
+  bag: [], modeCount: 0, feedback: [], mode: "menu", bout: null };
 
 // ---------- boot ----------
 (async function boot() {
@@ -37,7 +38,7 @@ const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null
   S.feedback = loadFeedback();
   $("load").style.display = "none";
   wire();
-  startNext();                         // playtest: serve a random mode
+  showMenu();                          // Bout vs Playtest start screen
 })();
 
 // ---------- playtest harness ----------
@@ -77,6 +78,111 @@ function exportFeedback() {
   toast("Feedback copied + downloaded (" + S.feedback.length + ")");
 }
 
+// ---------- bout (Slugfest: best-of-3, HP bars + KO; engine = boxing.mjs) ----------
+const BOUT_SECS = 45, BOUT_ROUNDS = 3, MAX_HP = 100;
+const SKILL = { word_hunt: "path", snake: "path", vowel_famine: "path", bingo_lines: "path", knockout: "path",
+  longest_word: "vocab", ladder: "vocab", trivia_spell: "trivia", trivia_sprint: "trivia",
+  jab_swap: "manip", roll_with_it: "manip", bob_weave: "manip", anagram_anchors: "manip" };
+const BOTS = ["SPARRING BOT", "SOUTHPAW SAM", "COUNTERPUNCH KID", "THE JABBERWOCK", "IRON LEXICON"];
+const shuffleSeeded = (a, rng) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// seeded 3-game fight card, spread across skill classes so no one strength decides it
+function fightCard(seed) {
+  const rng = mulberry32(subSeed(seed, 0, 0xF16));
+  const byClass = {};
+  for (const [id, cls] of Object.entries(SKILL)) (byClass[cls] ||= []).push(id);
+  return shuffleSeeded(Object.keys(byClass), rng).slice(0, BOUT_ROUNDS)
+    .map((c) => byClass[c][(rng() * byClass[c].length) | 0]);
+}
+// solo "sparring partner": a deterministic opponent score that tracks the player's (keeps
+// every game's scale fair). Real async PvP later swaps this for the opponent's actual rows.
+function opponentScore(you, seed, roundIdx) {
+  const rng = mulberry32(subSeed(seed, roundIdx, 0xB07));
+  return Math.max(0, Math.round(Math.max(you, 1) * (0.6 + rng() * 0.85)));   // ~0.6–1.45×
+}
+
+function showMenu() {
+  S.mode = "menu"; S.bout = null; clearInterval(S.timerId);
+  $("bouthud").style.display = "none"; $("btmrow").style.display = "none";
+  const ov = $("overlay");
+  ov.innerHTML = `
+    <div class="logo" style="font-size:30px">JABBER <b>JAWBREAKER</b></div>
+    <div class="sub">A 3-round word-boxing bout: win rounds to drain your rival's health — or land a KO.</div>
+    <button class="btn primary" id="mBout" style="max-width:260px">🥊 Start a Bout</button>
+    <button class="btn ghost" id="mPlay" style="max-width:260px">🎯 Playtest the 13 modes</button>`;
+  ov.classList.add("show");
+  $("mBout").onclick = startBout;
+  $("mPlay").onclick = () => { S.mode = "playtest"; ov.classList.remove("show"); $("btmrow").style.display = "flex"; startNext(); };
+}
+function startBout() {
+  const seed = (Math.random() * 2 ** 31) | 0;
+  const rng = mulberry32(subSeed(seed, 0, 0xB0B));
+  S.mode = "bout";
+  S.bout = { seed, card: fightCard(seed), roundIdx: 0, rounds: [], hpYou: MAX_HP, hpOpp: MAX_HP,
+    botName: BOTS[(rng() * BOTS.length) | 0] };
+  $("bouthud").style.display = "flex"; $("fnameB").textContent = S.bout.botName;
+  renderBoutHud();
+  beginBoutRound();
+}
+function beginBoutRound() {
+  $("overlay").classList.remove("show");
+  newRound(S.bout.seed, S.bout.roundIdx, S.bout.card[S.bout.roundIdx]);
+}
+function renderBoutHud() {
+  const b = S.bout; if (!b) return;
+  $("hpA").style.width = b.hpYou + "%"; $("hpB").style.width = b.hpOpp + "%";
+  $("hpA").className = b.hpYou <= 25 ? "low" : ""; $("hpB").className = b.hpOpp <= 25 ? "low" : "";
+  $("hpAnum").textContent = b.hpYou; $("hpBnum").textContent = b.hpOpp;
+  $("boutround").textContent = "Rd " + Math.min(b.roundIdx + 1, BOUT_ROUNDS) + "/" + BOUT_ROUNDS;
+}
+function boutRoundEnd() {
+  S.ended = true; clearInterval(S.timerId);
+  const b = S.bout, you = S.score, opp = opponentScore(you, b.seed, b.roundIdx);
+  b.rounds.push({ minigame: S.game.id, a: you, b: opp });
+  const sim = resolveBout(b.rounds, { maxHP: MAX_HP });        // re-sim the cumulative bout
+  const last = sim.perRound[sim.perRound.length - 1];
+  b.hpYou = sim.finalHP.A; b.hpOpp = sim.finalHP.B;
+  renderBoutHud();
+  const koNow = !!(sim.stoppage && sim.stoppage.round === b.roundIdx + 1);
+  const wonRound = last.winner === "A";
+  let beat = "";
+  if (koNow) beat = wonRound ? "KNOCKOUT! 🥊" : "You got KO'd 💫";
+  else if (last.kd >= 1) beat = wonRound ? "KNOCKDOWN! 🥊" : "Down you go 💫";
+  if (beat) toast(beat, !wonRound);
+  const done = koNow || b.roundIdx >= BOUT_ROUNDS - 1;
+  const ov = $("overlay");
+  ov.innerHTML = `
+    <h2>Round ${b.roundIdx + 1}${beat ? " — " + beat : ""}</h2>
+    <div class="big" style="font-size:22px">${wonRound ? "You won the round" : last.winner ? "Round to " + b.botName : "Even round"}</div>
+    <div class="sub">You <b>${you}</b> vs <b>${opp}</b> ${b.botName}<br>
+      dealt ${last.dmgB} dmg · took ${last.dmgA}<br>❤️ You ${b.hpYou} — ${b.hpOpp} ${b.botName}</div>
+    <button class="btn primary" id="ovNextR" style="max-width:240px">${done ? "See result →" : "Next round →"}</button>`;
+  ov.classList.add("show");
+  $("ovNextR").onclick = () => { if (done) return boutResult(sim); b.roundIdx++; beginBoutRound(); };
+}
+function boutResult(sim) {
+  const b = S.bout;
+  const youWon = sim.result.winner === "A", draw = sim.result.winner === null;
+  const headline = draw ? "🤝 DRAW" : youWon ? "🏆 YOU WIN!" : "😵 YOU LOSE";
+  let judges = "";
+  if (!sim.stoppage) {                                          // went the distance → judges' reveal
+    const c = boxingCard(b.rounds, { stoppage: false }).cards;
+    judges = `<div class="sub">Judges' cards — Technician · Brawler · Stats:<br>
+      ${c.technician.A}–${c.technician.B} · ${c.brawler.A}–${c.brawler.B} · ${c.statistician.A}–${c.statistician.B}</div>`;
+  }
+  const ov = $("overlay");
+  ov.innerHTML = `
+    <h2>${headline}</h2>
+    <div class="sub" style="font-size:15px">${describeResult(sim, "You", b.botName)}</div>
+    <div class="sub">❤️ You ${sim.finalHP.A} — ${sim.finalHP.B} ${b.botName}</div>
+    ${judges}
+    <button class="btn primary" id="ovRematch" style="max-width:240px">🥊 Rematch</button>
+    <button class="btn ghost" id="ovMenu" style="max-width:240px">Main menu</button>`;
+  ov.classList.add("show");
+  $("ovRematch").onclick = startBout;
+  $("ovMenu").onclick = showMenu;
+}
+
 // ---------- round lifecycle ----------
 function newRound(seed, round, forcedMode) {
   S.seed = seed; S.round = round;
@@ -91,7 +197,8 @@ function newRound(seed, round, forcedMode) {
   S.refill = S.game.cascade ? letterStream(mulberry32(subSeed(seed, round, 0xC0FFEE))) : null;
   clearInterval(S.timerId); S.timerId = null;
   $("overlay").classList.remove("show");
-  if (S.game.id === "word_hunt" || S.game.cascade) startCountdown(60);
+  if (S.mode === "bout") startCountdown(BOUT_SECS);     // every bout round is a timed boxing round
+  else if (S.game.id === "word_hunt" || S.game.cascade) startCountdown(60);
   else if (S.game.id === "trivia_spell" || S.game.sprint) {
     $("timer").textContent = "0s";
     S.timerId = setInterval(() => { if (!S.ended) $("timer").textContent = Math.round((Date.now() - S.start) / 1000) + "s"; }, 500);
@@ -115,7 +222,10 @@ function render() {
   $("gtitle").firstChild.textContent = g.label + " ";
   $("gpill").textContent = S.board.fertile ? "shared board" : "fallback";
   $("ginstr").textContent = g.instructions;
-  if (!ONLINE) $("mode").textContent = "playtest · " + S.feedback.length + "✍" + (FB_ON ? " ↑live" : "");
+  if (S.mode === "bout") $("mode").textContent = "🥊 vs " + S.bout.botName;
+  else if (!ONLINE) $("mode").textContent = "playtest · " + S.feedback.length + "✍" + (FB_ON ? " ↑live" : "");
+  $("bouthud").style.display = S.mode === "bout" ? "flex" : "none";
+  $("btmrow").style.display = S.mode === "bout" ? "none" : "flex";
 
   const showClue = g.id === "trivia_spell" || g.sprint;
   $("clue").style.display = showClue ? "block" : "none";
@@ -291,6 +401,7 @@ function anchorsSubmit() {
 // ---------- end of round ----------
 async function endRound() {
   if (S.ended) return;
+  if (S.mode === "bout") return boutRoundEnd();
   S.ended = true; clearInterval(S.timerId);
   const best = Math.max(S.score, +(localStorage.getItem("jj-best-" + S.game.id) || 0));
   localStorage.setItem("jj-best-" + S.game.id, best);

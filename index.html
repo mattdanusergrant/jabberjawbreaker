@@ -53,6 +53,16 @@
   .rate button small{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
   .rate button:active{transform:scale(.94)}
   .note{width:min(300px,80vw);background:var(--cell);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;font-size:13px;text-align:center}
+  .bouthud{display:none;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+  .bouthud .fighter{flex:1;min-width:0}
+  .bouthud .fighter.right{text-align:right}
+  .fname{font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fname b{color:var(--ink);font-size:13px}
+  .hpbar{height:10px;background:var(--cell);border-radius:6px;overflow:hidden;margin-top:4px}
+  .hpbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .bouthud .right .hpbar i{background:linear-gradient(90deg,var(--gold),var(--red))}
+  .hpbar i.low{background:var(--red)!important}
+  .boutmid{font-size:11px;font-weight:900;color:var(--gold);white-space:nowrap;text-align:center}
   .spacer{flex:1}
 </style>
 </head>
@@ -62,6 +72,12 @@
     <div class="logo">JABBER <b>JAWBREAKER</b></div>
     <div class="mode" id="mode">solo</div>
   </header>
+
+  <div class="bouthud" id="bouthud">
+    <div class="fighter"><span class="fname">YOU <b id="hpAnum">100</b></span><div class="hpbar"><i id="hpA"></i></div></div>
+    <div class="boutmid" id="boutround">Rd 1/3</div>
+    <div class="fighter right"><span class="fname"><b id="hpBnum">100</b> <span id="fnameB">BOT</span></span><div class="hpbar"><i id="hpB"></i></div></div>
+  </div>
 
   <div class="gamebar">
     <div class="gtitle" id="gtitle">—<span class="pill" id="gpill"></span></div>
@@ -91,7 +107,7 @@
   <div class="found" id="found"></div>
 
   <div class="spacer"></div>
-  <div class="row">
+  <div class="row" id="btmrow">
     <button class="btn ghost" id="next">Skip mode →</button>
     <button class="btn ghost" id="newseed">📋 Export feedback</button>
   </div>
