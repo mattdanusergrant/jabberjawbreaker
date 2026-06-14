@@ -8,10 +8,14 @@ import { MINIGAMES } from "./backend/engine/minigames/index.mjs";
 import { duelStandings } from "./backend/engine/standings.mjs";
 import { swap, shiftRow, shiftCol, rotate2x2, collapse, letterStream } from "./backend/engine/manip.mjs";
 import * as online from "./online.mjs";
+import * as feedbackSink from "./feedback.mjs";
 
 // ----- config: leave blank for solo; fill all four to go online -----
 const CONFIG = { supabaseUrl: "", supabaseAnonKey: "", matchId: "", seed: 20260613 };
 const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId);
+// ----- feedback sink: fill both to auto-send playtest feedback to your Supabase -----
+const FEEDBACK = { url: "", anonKey: "" };
+const FB_ON = !!(FEEDBACK.url && FEEDBACK.anonKey);
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
 const $ = (id) => document.getElementById(id);
@@ -29,6 +33,7 @@ const S = { dict: null, prefixes: null, seed: CONFIG.seed, round: 0, board: null
   const { buildPrefixSet } = await import("./backend/engine/grid.mjs");
   S.prefixes = buildPrefixSet(S.dict);
   if (ONLINE) { try { await online.init(CONFIG); $("mode").textContent = "online"; } catch (e) { console.warn(e); } }
+  if (FB_ON) { try { await feedbackSink.init(FEEDBACK); } catch (e) { console.warn("feedback sink off:", e); } }
   S.feedback = loadFeedback();
   $("load").style.display = "none";
   wire();
@@ -41,10 +46,20 @@ const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) {
 function nextMode() { if (!S.bag.length) S.bag = shuffle(Object.keys(MINIGAMES)); return S.bag.pop(); }
 function startNext() { S.modeCount++; newRound((Math.random() * 2 ** 31) | 0, S.modeCount, nextMode()); }
 const loadFeedback = () => { try { return JSON.parse(localStorage.getItem(FB_KEY) || "[]"); } catch { return []; } };
+const clientId = () => {
+  let id = localStorage.getItem("jj-client");
+  if (!id) { id = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2); localStorage.setItem("jj-client", id); }
+  return id;
+};
 function recordFeedback(rating) {
   const note = ($("note")?.value || "").trim();
   S.feedback.push({ mode: S.game.id, label: S.game.label, rating, note, score: S.score, seed: S.seed, ts: new Date().toISOString() });
-  localStorage.setItem(FB_KEY, JSON.stringify(S.feedback));
+  localStorage.setItem(FB_KEY, JSON.stringify(S.feedback));     // always keep a local copy
+  if (FB_ON) {                                                  // ...and send straight to Supabase
+    feedbackSink.submit({ minigame: S.game.id, label: S.game.label, rating, note, score: S.score,
+      seed: S.seed, client_id: clientId(), user_agent: navigator.userAgent })
+      .catch((e) => console.warn("feedback send failed (kept locally):", e));
+  }
 }
 function exportFeedback() {
   if (!S.feedback.length) return toast("No feedback logged yet", true);
@@ -100,7 +115,7 @@ function render() {
   $("gtitle").firstChild.textContent = g.label + " ";
   $("gpill").textContent = S.board.fertile ? "shared board" : "fallback";
   $("ginstr").textContent = g.instructions;
-  if (!ONLINE) $("mode").textContent = "playtest · " + S.feedback.length + "✍";
+  if (!ONLINE) $("mode").textContent = "playtest · " + S.feedback.length + "✍" + (FB_ON ? " ↑live" : "");
 
   const showClue = g.id === "trivia_spell" || g.sprint;
   $("clue").style.display = showClue ? "block" : "none";

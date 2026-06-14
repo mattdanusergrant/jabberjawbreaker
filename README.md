@@ -45,12 +45,26 @@ every mode you're asked to rate it — **🥊 love / 👍 good / 😐 meh / 👎
 optional one-line note. Rating it logs your feedback and serves the next random mode;
 **Skip mode →** moves on without rating.
 
-Feedback is stored in your browser (`localStorage`) and never leaves your device until you
-ask. Hit **📋 Export feedback** (bottom-right, or on any result card) to copy a JSON report
-to your clipboard *and* download it as `jabber-jawbreaker-feedback.json` — the report
-includes a per-mode summary (count + average rating) plus every individual entry. Send that
-file/paste back to share your playtest. *(A hosted collector — Supabase or a form endpoint —
-is a straightforward later upgrade if you want feedback gathered automatically.)*
+Feedback is stored in your browser (`localStorage`) and exports as JSON on demand via
+**📋 Export feedback** (clipboard + `jabber-jawbreaker-feedback.json` download, with a per-mode
+summary). When the Supabase sink is configured (below), each rating is **also sent straight to
+your `feedback` table** in real time — the header shows `↑live` when the sink is active.
+
+### Wiring feedback to Supabase (auto-collect)
+
+So feedback lands in your own database instead of needing manual export:
+
+1. In your Supabase project's **SQL editor**, run `backend/migrations/004_feedback.sql`
+   (after `001`–`003` if you haven't). It creates a `feedback` table whose RLS allows
+   **anonymous INSERT only** — playtesters can submit, but the table is **not readable**
+   through the public API. You read it in the Supabase **Table editor**.
+2. In `app.mjs`, fill the `FEEDBACK` config with your **Project URL** and **anon public key**
+   (Settings → API). The anon key is safe to ship publicly — RLS is what protects the data.
+3. Push. Ratings now flow into your table as they happen (with a random per-browser
+   `client_id`, the score, seed and user-agent — no personal data).
+
+*Optional:* add a Supabase **Database Webhook** on `feedback` insert → email/Slack to get
+pinged on every submission.
 
 ## Run locally
 
