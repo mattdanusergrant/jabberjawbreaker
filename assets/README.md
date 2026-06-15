@@ -18,4 +18,3 @@ Behavior:
 Tip: a transparent-background `logo.png` sits best on the dark theme. If your Logo A has a
 white background, trim it to transparent first (or export it on `#0c1020`).
 
-#LLM-generated

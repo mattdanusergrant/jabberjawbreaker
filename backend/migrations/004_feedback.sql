@@ -1,4 +1,4 @@
--- Jabber Jawbreaker — playtest feedback sink (apply after 001→003).  #LLM-generated
+-- Jabber Jawbreaker — playtest feedback sink (apply after 001→003).
 -- Anonymous playtesters INSERT their per-mode ratings straight from the static page
 -- using the public anon key. RLS allows anon INSERT only — no SELECT/UPDATE/DELETE — so
 -- feedback is write-only from the client and readable only by you (dashboard / service role).

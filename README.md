@@ -117,4 +117,3 @@ This is a static export of the `web-v2/` prototype from the ConductiveOS vault
 **solo out of the box**; async multiplayer (Supabase) is configured via `CONFIG` in
 `app.mjs` and is not enabled here.
 
-#LLM-generated

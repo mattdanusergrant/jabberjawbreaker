@@ -1,5 +1,5 @@
 // Mini-game registry — v0.2 ships thirteen across four interaction styles
-// (trace, build, manipulate, anchors). New games slot in here.  #LLM-generated
+// (trace, build, manipulate, anchors). New games slot in here.
 import { wordHunt } from "./wordHunt.mjs";
 import { longestWord } from "./longestWord.mjs";
 import { triviaSpell } from "./triviaSpell.mjs";

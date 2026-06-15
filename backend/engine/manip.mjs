@@ -1,6 +1,6 @@
 // Pure grid-manipulation + shared scoring helpers for the v0.2 mini-games.
 // Every op is immutable (returns a fresh 25-array) so the deterministic
-// seeded-start / local-moves / compare-scores contract stays intact.  #LLM-generated
+// seeded-start / local-moves / compare-scores contract stays intact.
 import { LETTER_VALUES, wordPath } from "./grid.mjs";
 
 export const VOWELS = new Set("AEIOU");

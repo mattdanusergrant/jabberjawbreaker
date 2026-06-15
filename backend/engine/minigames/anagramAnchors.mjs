@@ -1,6 +1,6 @@
 // Anagram Anchors — reorder the tiles within each row to spell a 5-letter word.
 // Partial credit by design: you score the rows you solve (board solvability of all
-// five isn't guaranteed by the shared seed), with a bonus for a clean sweep.  #LLM-generated
+// five isn't guaranteed by the shared seed), with a bonus for a clean sweep.
 import { wordValue } from "../manip.mjs";
 
 const PERFECT_BONUS = 50;

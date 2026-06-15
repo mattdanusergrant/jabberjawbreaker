@@ -1,5 +1,5 @@
 // Jabber Jawbreaker v0.2 — meta-game standings (pure, testable; no Supabase).
-// Ships with Duel Ladder; season/conquest can be added alongside.  #LLM-generated
+// Ships with Duel Ladder; season/conquest can be added alongside.
 
 // Duel Ladder: each round, the highest score wins that round (ties split). Standings
 // rank by round-wins, then total points. Works for 2 players or a small group.

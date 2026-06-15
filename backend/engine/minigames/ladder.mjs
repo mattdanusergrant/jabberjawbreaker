@@ -1,5 +1,5 @@
 // Ladder — climb a chain of words, each exactly one letter longer than the last
-// (CAT → CART → CHART → CHARTS), every rung spellable from the board's letters.  #LLM-generated
+// (CAT → CART → CHART → CHARTS), every rung spellable from the board's letters.
 import { canSpell } from "../grid.mjs";
 import { wordValue } from "../manip.mjs";
 

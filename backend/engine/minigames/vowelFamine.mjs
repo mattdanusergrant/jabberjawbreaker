@@ -1,4 +1,4 @@
-// Vowel Famine — Word Hunt, but only words with at most two vowels count.  #LLM-generated
+// Vowel Famine — Word Hunt, but only words with at most two vowels count.
 import { traceFind } from "../manip.mjs";
 
 export const vowelFamine = {

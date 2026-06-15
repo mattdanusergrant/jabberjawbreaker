@@ -1,4 +1,4 @@
-// Trivia Spell — answer a clue by spelling it from the board letters.  #LLM-generated
+// Trivia Spell — answer a clue by spelling it from the board letters.
 // The clue/answer for a round derive from the seed (like the board), so every player
 // in a match gets the same question. Answers are short so they fit a 25-letter board.
 import { canSpell, mulberry32, subSeed } from "../grid.mjs";

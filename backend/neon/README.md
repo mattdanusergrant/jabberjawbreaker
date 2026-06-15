@@ -1,7 +1,5 @@
 # Ludus — Neon backend (Games)
 
-#LLM-generated
-
 jabber's playtest feedback now lands in the shared **Ludus** Neon project (Data API),
 not Supabase. One Neon project backs every game, tagged by a `game` slug;
 jabber-jawbreaker's slug is `jabber-jawbreaker`.

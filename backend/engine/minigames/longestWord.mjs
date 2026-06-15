@@ -1,4 +1,4 @@
-// Longest Word — one shot: build the single longest word from any board letters.  #LLM-generated
+// Longest Word — one shot: build the single longest word from any board letters.
 import { canSpell, LETTER_VALUES } from "../grid.mjs";
 
 export const longestWord = {

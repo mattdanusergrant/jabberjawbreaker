@@ -1,6 +1,6 @@
 // Jabber Jawbreaker — bout adjudication: turn 12 rounds of raw mini-game scores into a
 // boxing result. Pure & testable; no Supabase. Async-safe: both fighters play all rounds
-// "blind", then a bout is adjudicated from the score pairs (stoppage included).  #LLM-generated
+// "blind", then a bout is adjudicated from the score pairs (stoppage included).
 //
 // 10-point must, scaled by SHARE of the round's combined points (so a blowout in any
 // mini-game maps to knockdowns regardless of that game's point scale):

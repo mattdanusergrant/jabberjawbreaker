@@ -1,4 +1,4 @@
--- Jabber Jawbreaker — ping a Discord channel on each new feedback row.  #LLM-generated
+-- Jabber Jawbreaker — ping a Discord channel on each new feedback row.
 -- Self-contained: a security-definer AFTER INSERT trigger uses pg_net to POST a Discord-
 -- formatted message to your channel webhook. The webhook URL lives ONLY here (server-side
 -- in your Supabase project) — never in the public static site. Paste yours below, then run.

@@ -1,4 +1,4 @@
-# Deploys the static single-player build to GitHub Pages.  #LLM-generated
+# Deploys the static single-player build to GitHub Pages.
 name: Deploy to GitHub Pages
 
 on:

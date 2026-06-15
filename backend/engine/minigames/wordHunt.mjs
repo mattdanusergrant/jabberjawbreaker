@@ -1,4 +1,4 @@
-// Word Hunt — find words by linking 8-adjacent letters. Boggle-style scoring.  #LLM-generated
+// Word Hunt — find words by linking 8-adjacent letters. Boggle-style scoring.
 import { wordPathExists } from "../grid.mjs";
 
 const wordPoints = (len) => (len >= 8 ? 11 : ({ 3: 1, 4: 1, 5: 2, 6: 3, 7: 5 }[len] || 0));

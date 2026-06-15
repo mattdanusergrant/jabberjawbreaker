@@ -1,6 +1,6 @@
 // Three manipulation games that share one engine: spend a budget of grid moves,
 // then hunt words on the board you reshaped. Same fair seeded start for everyone;
-// the front-end applies the moves locally and scores the final board.  #LLM-generated
+// the front-end applies the moves locally and scores the final board.
 import { traceFind } from "../manip.mjs";
 
 const huntScore = (sub, ctx) => {

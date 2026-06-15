@@ -1,4 +1,4 @@
--- Ludus (Games) — Neon shared backend.  #LLM-generated
+-- Ludus (Games) — Neon shared backend.
 -- Anonymous playtest feedback, one table for every game, tagged by `game`.
 -- Access: Data API (PostgREST). Unauthenticated playtesters INSERT via the `anonymous` role;
 -- RLS allows INSERT only (no read-back) — you read in the SQL Editor / dashboard.

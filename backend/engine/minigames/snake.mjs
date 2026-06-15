@@ -1,4 +1,4 @@
-// Snake — one long word traced along a single connected board path. Longest wins.  #LLM-generated
+// Snake — one long word traced along a single connected board path. Longest wins.
 import { wordValue } from "../manip.mjs";
 import { wordPath } from "../grid.mjs";
 

@@ -1,4 +1,4 @@
-// Bingo Lines — Word Hunt with a twist: fully cover a row or column for a BINGO bonus.  #LLM-generated
+// Bingo Lines — Word Hunt with a twist: fully cover a row or column for a BINGO bonus.
 import { traceFind } from "../manip.mjs";
 
 const LINE_BONUS = 25;

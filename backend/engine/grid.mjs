@@ -2,7 +2,7 @@
 // The crux of the design: a board (25 letters) + the round's mini-game are derived
 // ENTIRELY from (matchSeed, roundNo). Every player reconstructs the identical round
 // locally, so the backend only stores a scores ledger — never game state.
-// Pure, dependency-free, ESM. Browser- and Node-importable.  #LLM-generated
+// Pure, dependency-free, ESM. Browser- and Node-importable.
 
 // ---------- deterministic PRNG ----------
 export function mulberry32(a) {

@@ -1,6 +1,6 @@
 // Knockout — trace a word; it shatters, tiles drop, fresh letters fall in.
 // Pure per-word scorer: the front-end owns the mutable board + the seeded refill
-// stream (so every player's cascades stay identical) and passes the combo count.  #LLM-generated
+// stream (so every player's cascades stay identical) and passes the combo count.
 import { wordValue } from "../manip.mjs";
 import { wordPath } from "../grid.mjs";
 

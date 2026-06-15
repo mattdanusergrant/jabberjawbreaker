@@ -1,5 +1,5 @@
 // Trivia Sprint — five seeded clues in a row, each answer spelled from the board.
-// Reuses the Trivia Spell bank; clues are seed-derived so a match shares them.  #LLM-generated
+// Reuses the Trivia Spell bank; clues are seed-derived so a match shares them.
 import { canSpell, mulberry32, subSeed } from "../grid.mjs";
 import { BANK } from "./triviaSpell.mjs";
 
