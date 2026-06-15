@@ -106,7 +106,10 @@ function showMenu() {
   $("bouthud").style.display = "none"; $("btmrow").style.display = "none";
   const ov = $("overlay");
   ov.innerHTML = `
-    <div class="logo" style="font-size:30px">JABBER <b>JAWBREAKER</b></div>
+    <img id="hero" src="./assets/logo.png" alt="Jabber Jawbreaker"
+      style="max-width:min(80vw,360px);width:100%;height:auto;filter:drop-shadow(0 6px 20px rgba(0,0,0,.5))"
+      onload="document.getElementById('heroword').style.display='none'" onerror="this.remove()">
+    <div class="logo" id="heroword" style="font-size:30px">JABBER <b>JAWBREAKER</b></div>
     <div class="sub">A 3-round word-boxing bout: win rounds to drain your rival's health — or land a KO.</div>
     <button class="btn primary" id="mBout" style="max-width:260px">🥊 Start a Bout</button>
     <button class="btn ghost" id="mPlay" style="max-width:260px">🎯 Playtest the 13 modes</button>`;
