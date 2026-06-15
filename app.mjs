@@ -14,9 +14,9 @@ import * as feedbackSink from "./feedback.mjs";
 // ----- config: leave blank for solo; fill all four to go online -----
 const CONFIG = { supabaseUrl: "", supabaseAnonKey: "", matchId: "", seed: 20260613 };
 const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId);
-// ----- feedback sink: fill both to auto-send playtest feedback to your Supabase -----
-const FEEDBACK = { url: "https://hprivaysbttdqgebbjio.supabase.co", anonKey: "sb_publishable_h6hAFRHUku9XNttKmde7MA_owVkO1Wc" };
-const FB_ON = !!(FEEDBACK.url && FEEDBACK.anonKey);
+// ----- feedback sink: Data API URL + game slug → anonymous playtest feedback to the shared "Games" Neon project -----
+const FEEDBACK = { dataApiUrl: "https://ep-jolly-unit-a63f81yd.apirest.us-west-2.aws.neon.tech/neondb/rest/v1", game: "jabber-jawbreaker" };
+const FB_ON = !!FEEDBACK.dataApiUrl;
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
 const $ = (id) => document.getElementById(id);
@@ -56,7 +56,7 @@ function recordFeedback(rating) {
   const note = ($("note")?.value || "").trim();
   S.feedback.push({ mode: S.game.id, label: S.game.label, rating, note, score: S.score, seed: S.seed, ts: new Date().toISOString() });
   localStorage.setItem(FB_KEY, JSON.stringify(S.feedback));     // always keep a local copy
-  if (FB_ON) {                                                  // ...and send straight to Supabase
+  if (FB_ON) {                                                  // ...and send to the Games Data API
     feedbackSink.submit({ minigame: S.game.id, label: S.game.label, rating, note, score: S.score,
       seed: S.seed, client_id: clientId(), user_agent: navigator.userAgent })
       .catch((e) => console.warn("feedback send failed (kept locally):", e));

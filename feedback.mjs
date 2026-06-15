@@ -1,17 +1,22 @@
-// Optional feedback sink — inserts playtest ratings into Supabase straight from the
-// static page. Insert-only with the public anon key (RLS allows anon INSERT and denies
-// SELECT), so there's no sign-in and nothing is readable client-side. The data lands in
-// your `feedback` table for you to read in the dashboard. See migrations/004_feedback.sql.
-let client = null;
+// Optional feedback sink — posts playtest ratings to the shared "Games" Neon project's
+// Data API (PostgREST). Anonymous insert-only: no sign-in, nothing readable client-side.
+// Configure with the project's Data API URL + this game's slug. See backend/neon/.
+let endpoint = null;
+let game = null;
 
-export async function init({ url, anonKey }) {
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-  client = createClient(url, anonKey, { auth: { persistSession: false } });
-  return client;
+export async function init({ dataApiUrl, game: g }) {
+  if (!dataApiUrl) throw new Error("feedback sink: dataApiUrl required");
+  endpoint = dataApiUrl.replace(/\/+$/, "") + "/feedback";
+  game = g || null;
+  return true;
 }
 
 export async function submit(row) {
-  if (!client) throw new Error("feedback sink not initialised");
-  const { error } = await client.from("feedback").insert(row);
-  if (error) throw error;
+  if (!endpoint) throw new Error("feedback sink not initialised");
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...row, game }),
+  });
+  if (!res.ok) throw new Error("feedback insert failed: HTTP " + res.status);
 }
