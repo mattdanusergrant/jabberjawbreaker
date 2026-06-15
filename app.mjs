@@ -107,7 +107,7 @@ function showMenu() {
   const ov = $("overlay");
   ov.innerHTML = `
     <img id="hero" src="./assets/logo.png" alt="Jabber Jawbreaker"
-      style="max-width:min(80vw,340px);width:100%;height:auto;background:#fff;border-radius:18px;box-shadow:0 8px 28px rgba(0,0,0,.45)"
+      style="max-width:min(82vw,360px);width:100%;height:auto;filter:drop-shadow(0 8px 22px rgba(0,0,0,.55))"
       onload="document.getElementById('heroword').style.display='none'" onerror="this.remove()">
     <div class="logo" id="heroword" style="font-size:30px">JABBER <b>JAWBREAKER</b></div>
     <div class="sub">A 3-round word-boxing bout: win rounds to drain your rival's health — or land a KO.</div>
