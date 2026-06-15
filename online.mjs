@@ -1,6 +1,9 @@
 // Optional online adapter — loads supabase-js from a CDN so the no-bundler front-end
 // can submit scores. The canonical, bundled version is ../backend/client/api.mjs.
 // Requires: migrations applied + anonymous sign-ins (or swap for magic-link).  #LLM-generated
+// Multi-game note: scores are scoped to a match, and each match carries its `game` slug
+// (set server-side by create_match), so this shared "Games" project keeps every game's
+// scores separate without this adapter needing the slug itself.
 let sb = null;
 
 export async function init(cfg) {

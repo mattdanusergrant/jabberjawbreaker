@@ -70,11 +70,13 @@ your `feedback` table** in real time — the header shows `↑live` when the sin
 So feedback lands in your own database instead of needing manual export:
 
 1. In your Supabase project's **SQL editor**, run `backend/migrations/004_feedback.sql`
-   (after `001`–`003` if you haven't). It creates a `feedback` table whose RLS allows
-   **anonymous INSERT only** — playtesters can submit, but the table is **not readable**
-   through the public API. You read it in the Supabase **Table editor**.
-2. In `app.mjs`, fill the `FEEDBACK` config with your **Project URL** and **anon public key**
-   (Settings → API). The anon key is safe to ship publicly — RLS is what protects the data.
+   (after `001`–`003` if you haven't), then `006_genericize.sql` — together they create a
+   shared `feedback` table whose RLS allows **anonymous INSERT only** (playtesters can
+   submit, but the table is **not readable** through the public API) and tag each row with a
+   `game` slug so one **Games** project serves every game. See `backend/SHARED-BACKEND.md`.
+2. In `app.mjs`, fill the `FEEDBACK` config with your **Project URL**, **anon public key**
+   (Settings → API) and your **`game`** slug. The anon key is safe to ship publicly — RLS is
+   what protects the data.
 3. Push. Ratings now flow into your table as they happen (with a random per-browser
    `client_id`, the score, seed and user-agent — no personal data).
 

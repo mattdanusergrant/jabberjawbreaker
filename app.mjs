@@ -14,8 +14,9 @@ import * as feedbackSink from "./feedback.mjs";
 // ----- config: leave blank for solo; fill all four to go online -----
 const CONFIG = { supabaseUrl: "", supabaseAnonKey: "", matchId: "", seed: 20260613 };
 const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId);
-// ----- feedback sink: fill both to auto-send playtest feedback to your Supabase -----
-const FEEDBACK = { url: "https://hprivaysbttdqgebbjio.supabase.co", anonKey: "sb_publishable_h6hAFRHUku9XNttKmde7MA_owVkO1Wc" };
+// ----- feedback sink: url + anonKey + game slug → auto-send playtest feedback to your
+//       shared "Games" Supabase project (one project for every game, tagged by `game`) -----
+const FEEDBACK = { url: "https://hprivaysbttdqgebbjio.supabase.co", anonKey: "sb_publishable_h6hAFRHUku9XNttKmde7MA_owVkO1Wc", game: "jabber-jawbreaker" };
 const FB_ON = !!(FEEDBACK.url && FEEDBACK.anonKey);
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
