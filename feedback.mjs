@@ -1,28 +1,31 @@
-// Optional feedback sink — posts playtest ratings to the shared "Games" Neon project's
-// Data API (PostgREST), and (optionally) pings the Discord notify-relay. Anonymous
-// insert-only: no sign-in, nothing readable client-side. Configure with the Data API
-// URL, this game's slug, and (optionally) the relay URL. See backend/neon/.
+// Optional feedback sink — pings the Discord notify-relay on each rating, and (best-effort)
+// stores the row in the shared "Games" Neon project's Data API. The Discord ping is
+// INDEPENDENT of the Neon write, so notifications never depend on the store succeeding.
+// Configure with the relay URL, this game's slug, and the Data API URL. See backend/neon/.
 let endpoint = null;
 let game = null;
 let notifyUrl = null;
 
 export async function init({ dataApiUrl, game: g, notifyUrl: n }) {
-  if (!dataApiUrl) throw new Error("feedback sink: dataApiUrl required");
-  endpoint = dataApiUrl.replace(/\/+$/, "") + "/feedback";
+  endpoint = dataApiUrl ? dataApiUrl.replace(/\/+$/, "") + "/feedback" : null;
   game = g || null;
   notifyUrl = n || null;
   return true;
 }
 
 export async function submit(row) {
-  if (!endpoint) throw new Error("feedback sink not initialised");
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...row, game }),
-  });
-  if (!res.ok) throw new Error("feedback insert failed: HTTP " + res.status);
-  if (notifyUrl) ping(row).catch(() => {});   // fire-and-forget Discord ping (never blocks feedback)
+  const payload = { ...row, game };
+  if (notifyUrl) ping(payload).catch((e) => console.warn("discord ping failed:", e));   // notify (independent)
+  if (endpoint) {                                                                        // store in Neon (best-effort)
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) console.warn("feedback store failed (Neon): HTTP " + res.status);
+    } catch (e) { console.warn("feedback store error (Neon):", e); }
+  }
 }
 
 function ping(row) {
