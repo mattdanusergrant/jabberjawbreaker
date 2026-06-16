@@ -14,10 +14,10 @@ import * as feedbackSink from "./feedback.mjs";
 // ----- config: leave blank for solo; fill all four to go online -----
 const CONFIG = { supabaseUrl: "", supabaseAnonKey: "", matchId: "", seed: 20260613 };
 const ONLINE = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && CONFIG.matchId);
-// ----- feedback sink: Data API URL + game slug → anonymous feedback to the shared "Games" Neon
-//       project; notifyUrl = the Discord notify-relay Worker → pings Discord on each rating -----
-const FEEDBACK = { dataApiUrl: "https://ep-jolly-unit-a63f81yd.apirest.us-west-2.aws.neon.tech/neondb/rest/v1", game: "jabber-jawbreaker", notifyUrl: "https://notify-relay.mattdanusergrant.workers.dev" };
-const FB_ON = !!FEEDBACK.dataApiUrl;
+// ----- feedback sink: url + anonKey → auto-send playtest feedback to your Supabase "Games"
+//       project (RLS allows anonymous insert; the 005 trigger pings Discord on each row) -----
+const FEEDBACK = { url: "https://hprivaysbttdqgebbjio.supabase.co", anonKey: "sb_publishable_h6hAFRHUku9XNttKmde7MA_owVkO1Wc" };
+const FB_ON = !!(FEEDBACK.url && FEEDBACK.anonKey);
 const PROD = { minWords: 20, minMaxLen: 6, minLongest: 7 };
 
 const $ = (id) => document.getElementById(id);
